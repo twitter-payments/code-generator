@@ -85,7 +85,6 @@ func (g *Generator) BindFlags(flag *flag.FlagSet) {
 // This roughly models gengo/v2.Execute.
 func Run(g *Generator) {
 	// Roughly models gengo/v2.newBuilder.
-
 	p := parser.NewWithOptions(parser.Options{BuildTags: []string{"proto"}})
 
 	var allInputs []string
@@ -234,6 +233,23 @@ func Run(g *Generator) {
 		log.Fatalf("Failed executing local generator: %v", err)
 	}
 
+	if !g.KeepGogoproto {
+		// Clean existing files first
+		for _, p := range outputPackages {
+			if err := p.(*protobufPackage).Clean(); err != nil {
+				log.Fatalf("Unable to clean package %s: %v", p.Name(), err)
+			}
+		}
+		// Then regenerate without Gogo
+		for _, outputPackage := range outputPackages {
+			p := outputPackage.(*protobufPackage)
+			p.OmitGogo = true
+		}
+		if err := c.ExecuteTargets(localOutputPackages); err != nil {
+			log.Fatalf("Failed executing local generator: %v", err)
+		}
+	}
+
 	if g.OnlyIDL {
 		return
 	}
@@ -317,17 +333,6 @@ func Run(g *Generator) {
 
 	if g.SkipGeneratedRewrite {
 		return
-	}
-
-	if !g.KeepGogoproto {
-		// generate, but do so without gogoprotobuf extensions
-		for _, outputPackage := range outputPackages {
-			p := outputPackage.(*protobufPackage)
-			p.OmitGogo = true
-		}
-		if err := c.ExecuteTargets(localOutputPackages); err != nil {
-			log.Fatalf("Failed executing local generator: %v", err)
-		}
 	}
 
 	for _, outputPackage := range outputPackages {
