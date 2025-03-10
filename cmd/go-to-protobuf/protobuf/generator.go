@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iancoleman/strcase"
 	"k8s.io/gengo/v2"
 	"k8s.io/gengo/v2/generator"
 	"k8s.io/gengo/v2/namer"
@@ -49,7 +50,7 @@ type genProtoIDL struct {
 func (g *genProtoIDL) PackageVars(c *generator.Context) []string {
 	if g.omitGogo {
 		return []string{
-			fmt.Sprintf("option go_package = %q;", g.localGoPackage.Package),
+			`option go_package = "github.com/twitter-payments/orchestrator/internal/genproto/audit/v1";`,
 		}
 	}
 	return []string{
@@ -464,6 +465,10 @@ func isFundamentalProtoType(t *types.Type) (*types.Type, bool) {
 			return &types.Type{Name: types.Name{Name: "float"}, Kind: types.Protobuf}, true
 		case "uintptr":
 			return &types.Type{Name: types.Name{Name: "uint64"}, Kind: types.Protobuf}, true
+		case "int8":
+			return &types.Type{Name: types.Name{Name: "int64"}, Kind: types.Protobuf}, true
+		case "uint8", "byte":
+			return &types.Type{Name: types.Name{Name: "uint32"}, Kind: types.Protobuf}, true
 		}
 		// TODO: complex?
 	}
@@ -643,6 +648,8 @@ func membersToFields(locator ProtobufLocator, t *types.Type, localPackage types.
 			continue
 		}
 
+		field.Name = strcase.ToSnake(m.Name)
+
 		if err := protobufTagToField(protobufTag, &field, m, t, localPackage); err != nil {
 			return nil, err
 		}
@@ -741,11 +748,14 @@ func formatProtoFile(source []byte) ([]byte, error) {
 func assembleProtoFile(w io.Writer, f *generator.File) {
 	w.Write(f.Header)
 
-	fmt.Fprint(w, "syntax = \"proto2\";\n\n")
+	fmt.Fprint(w, "syntax = \"proto3\";\n\n")
 
-	if len(f.PackageName) > 0 {
-		fmt.Fprintf(w, "package %s;\n\n", f.PackageName)
-	}
+	// if len(f.PackageName) > 0 {
+	// 	fmt.Fprintf(w, "package %s;\n\n", f.PackageName)
+	// }
+
+	// hard code audit v1 for our purpose
+	fmt.Fprintf(w, "package %s;\n\n", "audit.v1")
 
 	if len(f.Imports) > 0 {
 		imports := []string{}
