@@ -1,6 +1,6 @@
 // This is a generated file. Do not edit directly.
 
-module github.com/michaelwu317/code-generator
+module github.com/twitter-payments/code-generator
 
 go 1.24.0
 
